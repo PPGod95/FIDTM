@@ -14,11 +14,8 @@ def load_data_fidt(img_path, args, train=True):
     while True:
         try:
             gt_file = h5py.File(gt_path)
-            # print('kpoint:',gt_file['kpoint'])
             k = np.asarray(gt_file['kpoint'])
-            # print('k:', k.sum())
             fidt_map = np.asarray(gt_file['fidt_map'])
-            # print('fidt_map',fidt_map)
             break
         except OSError:
             print("path is wrong, can not load ", img_path)

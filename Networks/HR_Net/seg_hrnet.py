@@ -475,9 +475,8 @@ class HighResolutionNet(nn.Module):
 
         if train==True:
             if os.path.isfile(pretrained):
-
-                pretrained_dict = torch.load(pretrained)
                 logger.info('=> loading pretrained model {}'.format(pretrained))
+                pretrained_dict = torch.load(pretrained)
                 model_dict = self.state_dict()
                 pretrained_dict = {k: v for k, v in pretrained_dict.items()
                                    if k in model_dict.keys()}
