@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+@Project : 
+@FileName: 
+@Author  :penghr 
+@Time    :202x/xx/xx xx:xx
+@Desc  : 
+"""
+
 import torch
 from torch.utils.data import Dataset
 import os
@@ -28,11 +37,11 @@ class listDataset(Dataset):
 
     def __getitem__(self, index):
         assert index <= len(self), 'index range error'
-
         fname = self.lines[index]['fname']
         img = self.lines[index]['img']
         kpoint = self.lines[index]['kpoint']
         fidt_map = self.lines[index]['fidt_map']
+
 
         '''data augmention'''
         if self.train == True:
@@ -53,8 +62,8 @@ class listDataset(Dataset):
         if self.train == True:
             # fidt_map = torch.from_numpy(fidt_map).cuda()
             fidt_map = torch.from_numpy(fidt_map)
-            width = self.args['crop_size']
-            height = self.args['crop_size']
+            width = self.args.crop_size
+            height = self.args.crop_size
             # print(img.shape)
             crop_size_x = random.randint(0, img.shape[1] - width)
             crop_size_y = random.randint(0, img.shape[2] - height)

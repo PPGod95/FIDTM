@@ -163,6 +163,7 @@ def show_fidt_func(input):
     return fidt_map1
 
 
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
 

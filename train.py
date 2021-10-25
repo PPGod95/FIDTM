@@ -11,20 +11,92 @@ import os
 import time
 import logging
 import argparse
+import warnings
 
-from config import args
+import torch
+import torch.nn as nn
 
-# warnings.filterwarnings('ignore')
-'''fixed random seed '''
-# setup_seed(args.seed)
+from validate import validate
+from Networks.HR_Net.seg_hrnet import get_seg_model
+from utils.data import *
+from utils.model import *
+from utils.datasets import *
+from utils.general import *
 
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
-logging.basicConfig(format='%(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
+warnings.filterwarnings('ignore')
+
+
+def train(pre_data, model, criterion, optimizer, epoch, args):
+    train_loader = torch.utils.data.DataLoader(
+        listDataset(pre_data, save_path,
+                    shuffle=True,
+                    transform=transforms.Compose([transforms.ToTensor(),
+                                                  transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                       std=[0.229, 0.224, 0.225]), ]),
+                    train=True,
+                    batch_size=args.batch_size,
+                    num_workers=args.workers,
+                    args=args), batch_size=args.batch_size, drop_last=False)
+
+    args.lr = optimizer.param_groups[0]['lr']
+
+    model.train()
+
+    logger.info(('%10s' * 4) % ('Epoch', 'Samples', 'LRate', 'Loss'))
+    pbar = enumerate(train_loader)
+    pbar = tqdm(pbar, total=len(train_loader))
+    for i, (fname, img, fidt_map, kpoint) in pbar:
+        img = img.cuda()
+        fidt_map = fidt_map.type(torch.FloatTensor).unsqueeze(1).cuda()
+        d6 = model(img)
+
+        if d6.shape != fidt_map.shape:
+            print("the shape is wrong, please check. Both of prediction and GT should be [B, C, H, W].")
+            exit()
+        loss = criterion(d6, fidt_map)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        s = ('%10s' * 4) % (
+        f'{epoch}/{args.epochs - 1}', epoch * len(train_loader.dataset), args.lr, round(float(loss)))
+        pbar.set_description(s)
+
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='FIDTM')
+    parser.add_argument('--gpu_id', type=str, default='0', help='gpu id')
+    parser.add_argument('--seed', type=int, default=1, help='random seed')
+    parser.add_argument('--workers', type=int, default=16, help='load data workers')
+    parser.add_argument('--dataset_path', type=str, default='dataset/ShanghaiTech/part_A_final', help='choice train dataset')
+    parser.add_argument('--project', default='run/train', help='save results to project/name')
+    parser.add_argument('--name', type=str, default='exp', help='save checkpoint directory')
+    parser.add_argument('--pre_trained', type=str, default=None, help='pre-trained model directory')
+    # parser.add_argument('--pre_trained', type=str, default='model/NWPU-Crowd/model_best_nwpu.pth',help='pre-trained model directory')
+
+    parser.add_argument('--print_freq', type=int, default=200, help='print frequency')
+    parser.add_argument('--crop_size', type=int, default=256, help='crop size for training')
+    parser.add_argument('--epochs', type=int, default=3000, help='end epoch for training')
+    parser.add_argument('--start_epoch', type=int, default=0, help='start epoch for training')
+    parser.add_argument('--batch_size', type=int, default=8, help='input batch size for training')
+    parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
+    parser.add_argument('--weight_decay', type=float, default=5 * 1e-4, help='weight decay')
+    parser.add_argument('--resize', type=tuple, default=(1440, 810), help='resize for input img')
+
+    parser.add_argument('--best_pred', type=int, default=1e3, help='best pred')
+    '''video demo'''
+    parser.add_argument('--video_path', type=str, default=None, help='input video path ')
+    args = parser.parse_args()
+
+    '''fixed random seed '''
+    setup_seed(args.seed)
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
+
+    logging.basicConfig(format='%(message)s', level=logging.INFO)
+    logger = logging.getLogger(__name__)
     logger.info(args)
 
+    # 加载数据
     dataset_path = args.dataset_path
     train_img_list = os.path.join(dataset_path, 'train/images')
     test_img_list = os.path.join(dataset_path, 'test/images')
@@ -37,4 +109,64 @@ if __name__ == '__main__':
     for file_name in os.listdir(test_img_list):
         test_list.append(os.path.join(test_img_list, file_name))
 
+    torch.set_num_threads(args.workers)
+    train_data = pre_data(train_list, args, train=True)
+    test_data = pre_data(test_list, args, train=False)
     logger.info(f'train_size:{len(train_list)}, test_size:{len(test_list)}')
+
+    # 加载模型
+    model = get_seg_model(train=True)
+    model = nn.DataParallel(model, device_ids=[0])
+    model = model.cuda()
+    optimizer = torch.optim.Adam([{'params': model.parameters(), 'lr': args.lr}], lr=args.lr,
+                                 weight_decay=args.weight_decay)
+
+    criterion = nn.MSELoss(size_average=False).cuda()
+    # criterion = nn.MSELoss(reduction='sum').cuda()
+
+    save_path = os.path.join(args.project, args.name)
+    if os.path.exists(save_path):
+        save_path = save_path + str(len(os.listdir(args.project)))
+        os.makedirs(save_path)
+    else:
+        os.makedirs(save_path)
+    logger.info(f'file save to {save_path}')
+
+    # 预训练模型
+    if args.pre_trained:
+        if os.path.isfile(args.pre_trained):
+            print("=> loading checkpoint '{}'".format(args.pre_trained))
+            checkpoint = torch.load(args.pre_trained)
+            model.load_state_dict(checkpoint['state_dict'], strict=False)
+            args.start_epoch = checkpoint['epoch']
+            args.best_pred = checkpoint['best_precision']
+            print('pretrained model:', args.pre_trained)
+        else:
+            print("=> no checkpoint found at '{}'".format(args.pre_trained))
+
+    best_pred = args.best_pred
+
+    # begin training
+    for epoch in range(args.start_epoch, args.epochs):
+        train(train_data, model, criterion, optimizer, epoch, args)
+        if epoch % 30 == 0:
+            # val
+            precision = validate(test_data, model, save_path, args)
+            is_best = precision < args.best_pred
+            best_pred = min(precision, args.best_pred)
+            logger.info(f'* best MAE: {best_pred}, save_path: {save_path}')
+
+            save_checkpoint({
+                'epoch': epoch + 1,
+                'pre_trained': args.pre_trained,
+                'state_dict': model.state_dict(),
+                'best_precision': best_pred,
+                'optimizer': optimizer.state_dict(),
+            }, is_best, save_path)
+
+    # end training
+
+    torch.save(model.state_dict(), os.path.join(save_path, 'best.pt'))
+    precision = validate(test_data, model, save_path, args)
+
+    logger.info(f'Finish training\t * best MAE: {round(best_pred,2)}, results save to: {save_path}')

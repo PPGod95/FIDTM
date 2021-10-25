@@ -8,6 +8,7 @@ import logging
 
 from tqdm import tqdm
 import numpy as np
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
@@ -22,7 +23,7 @@ from Networks.HR_Net.seg_hrnet import get_seg_model
 
 warnings.filterwarnings('ignore')
 '''fixed random seed '''
-setup_seed(args.seed)
+# setup_seed(args.seed)
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
