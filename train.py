@@ -18,11 +18,11 @@ import torch.nn as nn
 import torch.utils.data
 
 from test import test
-from Networks.HR_Net.seg_hrnet import get_seg_model
 from utils.data import *
 from utils.model import *
 from utils.datasets import *
 from utils.general import *
+from Networks.HR_Net.seg_hrnet import get_seg_model
 
 warnings.filterwarnings('ignore')
 
