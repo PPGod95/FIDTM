@@ -6,8 +6,9 @@
 @Time    :2021/10/19 10:30
 @Desc  : 
 """
-import csv
+
 import os
+import csv
 import time
 import argparse
 import logging
@@ -24,8 +25,11 @@ from Networks.HR_Net.seg_hrnet import get_seg_model
 
 warnings.filterwarnings('ignore')
 
+
 def inference(model, source_list, save_path):
     model.eval()
+    img_transform = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    tensor_transform = transforms.ToTensor()
     with torch.no_grad():
         start_time = time.time()
         loc_file = open(os.path.join(save_path, 'localization.txt'), 'w+')
@@ -43,7 +47,7 @@ def inference(model, source_list, save_path):
             # 转换点图计数
             count, pred_kpoint, loc_file = LMDS_counting(d6, img_name, loc_file)
             # 画点图
-            point_map = generate_point_map(pred_kpoint,loc_file)
+            point_map = generate_point_map(pred_kpoint, loc_file)
             # 画框图
             box_img = generate_bounding_boxes(pred_kpoint, img_path, args.resize)
             # 热力图
@@ -67,7 +71,7 @@ def inference(model, source_list, save_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FIDTM')
-    parser.add_argument('--gpu_id', type=str, default='1', help='gpu id')
+    parser.add_argument('--gpu_id', type=str, default='0', help='gpu id')
     parser.add_argument('--seed', type=int, default=1, help='random seed')
     parser.add_argument('--workers', type=int, default=16, help='load data workers')
     parser.add_argument('--source', type=str, default='dataset/FIDTM/test/images', help='choice inference dataset')
@@ -88,7 +92,7 @@ if __name__ == '__main__':
 
     save_path = os.path.join(args.project, args.name)
     if os.path.exists(save_path):
-        save_path = save_path+str(len(os.listdir(args.project)))
+        save_path = save_path + str(len(os.listdir(args.project)))
         os.makedirs(save_path)
     else:
         os.makedirs(save_path)
@@ -101,9 +105,6 @@ if __name__ == '__main__':
     model = get_seg_model()
     model = torch.nn.DataParallel(model, device_ids=[0])
     model = model.cuda()
-
-    img_transform = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    tensor_transform = transforms.ToTensor()
 
     if os.path.isfile(args.model):
         print("=> loading checkpoint '{}'".format(args.model))

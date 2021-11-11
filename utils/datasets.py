@@ -6,30 +6,25 @@
 @Time    :202x/xx/xx xx:xx
 @Desc  : 
 """
-
-import torch
-from torch.utils.data import Dataset
 import os
 import random
-from image import *
+
+import torch
 import numpy as np
-import numbers
+from PIL import Image
+from torch.utils.data import Dataset
+
 from torchvision import datasets, transforms
 
 class listDataset(Dataset):
-    def __init__(self, root, shape=None, shuffle=True, transform=None, train=False, seen=0, batch_size=1,
-                 num_workers=4, args=None):
-        if train:
+    def __init__(self, root, transform=None, task='train', args=None):
+        if task == 'train':
             random.shuffle(root)
 
         self.nSamples = len(root)
         self.lines = root
         self.transform = transform
-        self.train = train
-        self.shape = shape
-        self.seen = seen
-        self.batch_size = batch_size
-        self.num_workers = num_workers
+        self.task = task
         self.args = args
 
     def __len__(self):
@@ -44,7 +39,7 @@ class listDataset(Dataset):
 
 
         '''data augmention'''
-        if self.train == True:
+        if self.task == 'train':
             if random.random() > 0.5:
                 fidt_map = np.fliplr(fidt_map)
                 img = img.transpose(Image.FLIP_LEFT_RIGHT)
@@ -59,17 +54,34 @@ class listDataset(Dataset):
             img = self.transform(img)
 
         '''crop size'''
-        if self.train == True:
+        if self.task == 'train':
             # fidt_map = torch.from_numpy(fidt_map).cuda()
             fidt_map = torch.from_numpy(fidt_map)
             width = self.args.crop_size
             height = self.args.crop_size
-            # print(img.shape)
             crop_size_x = random.randint(0, img.shape[1] - width)
             crop_size_y = random.randint(0, img.shape[2] - height)
             img = img[:, crop_size_x: crop_size_x + width, crop_size_y:crop_size_y + height]
             kpoint = kpoint[crop_size_x: crop_size_x + width, crop_size_y:crop_size_y + height]
             fidt_map = fidt_map[crop_size_x: crop_size_x + width, crop_size_y:crop_size_y + height]
+
+        '''需要resize使所有输入尺寸一样才能多batch_size'''
+        # if self.task == 'test':
+        #     # fidt_map = torch.from_numpy(fidt_map).cuda()
+        #     fidt_map = torch.from_numpy(fidt_map)
+        #     width = self.args.resize[0]
+        #     height = self.args.resize[1]
+        #     # crop_size_x = random.randint(0, img.shape[1] - width)
+        #     # crop_size_y = random.randint(0, img.shape[2] - height)
+        #
+        #     img = img[:, 0:width, 0:height]
+        #     kpoint = kpoint[0:width, 0:height]
+        #     fidt_map = fidt_map[0:width, 0:height]
+        #     print(img.shape)
+        #     print(kpoint.shape)
+        #     print(fidt_map.shape)
+
+
 
         return fname, img, fidt_map, kpoint
 

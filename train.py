@@ -15,8 +15,9 @@ import warnings
 
 import torch
 import torch.nn as nn
+import torch.utils.data
 
-from validate import validate
+from test import test
 from Networks.HR_Net.seg_hrnet import get_seg_model
 from utils.data import *
 from utils.model import *
@@ -28,15 +29,16 @@ warnings.filterwarnings('ignore')
 
 def train(pre_data, model, criterion, optimizer, epoch, args):
     train_loader = torch.utils.data.DataLoader(
-        listDataset(pre_data, save_path,
-                    shuffle=True,
+        listDataset(pre_data,
                     transform=transforms.Compose([transforms.ToTensor(),
                                                   transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                                        std=[0.229, 0.224, 0.225]), ]),
-                    train=True,
-                    batch_size=args.batch_size,
-                    num_workers=args.workers,
-                    args=args), batch_size=args.batch_size, drop_last=False)
+                    task='train',
+                    args=args),
+        num_workers=args.workers,
+        pin_memory=False,
+        batch_size=args.batch_size,
+        drop_last=False)
 
     args.lr = optimizer.param_groups[0]['lr']
 
@@ -67,7 +69,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FIDTM')
     parser.add_argument('--gpu_id', type=str, default='0', help='gpu id')
     parser.add_argument('--seed', type=int, default=1, help='random seed')
-    parser.add_argument('--workers', type=int, default=16, help='load data workers')
+    parser.add_argument('--workers', type=int, default=8, help='load data workers')
     parser.add_argument('--dataset_path', type=str, default='dataset/ShanghaiTech/part_A_final', help='choice train dataset')
     parser.add_argument('--project', default='run/train', help='save results to project/name')
     parser.add_argument('--name', type=str, default='exp', help='save checkpoint directory')
@@ -78,7 +80,7 @@ if __name__ == '__main__':
     parser.add_argument('--crop_size', type=int, default=256, help='crop size for training')
     parser.add_argument('--epochs', type=int, default=3000, help='end epoch for training')
     parser.add_argument('--start_epoch', type=int, default=0, help='start epoch for training')
-    parser.add_argument('--batch_size', type=int, default=8, help='input batch size for training')
+    parser.add_argument('--batch_size', type=int, default=4, help='input batch size for training')
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=5 * 1e-4, help='weight decay')
     parser.add_argument('--resize', type=tuple, default=(1440, 810), help='resize for input img')
@@ -99,20 +101,20 @@ if __name__ == '__main__':
     # 加载数据
     dataset_path = args.dataset_path
     train_img_list = os.path.join(dataset_path, 'train/images')
-    test_img_list = os.path.join(dataset_path, 'test/images')
+    val_img_list = os.path.join(dataset_path, 'test/images')
 
     train_list = []
     for file_name in os.listdir(train_img_list):
         train_list.append(os.path.join(train_img_list, file_name))
 
-    test_list = []
-    for file_name in os.listdir(test_img_list):
-        test_list.append(os.path.join(test_img_list, file_name))
+    val_list = []
+    for file_name in os.listdir(val_img_list):
+        val_list.append(os.path.join(val_img_list, file_name))
 
-    torch.set_num_threads(args.workers)
+    torch.set_num_threads(4)
     train_data = pre_data(train_list, args, train=True)
-    test_data = pre_data(test_list, args, train=False)
-    logger.info(f'train_size:{len(train_list)}, test_size:{len(test_list)}')
+    val_data = pre_data(val_list, args, train=False)
+    logger.info(f'train_size:{len(train_list)}, test_size:{len(val_list)}')
 
     # 加载模型
     model = get_seg_model(train=True)
@@ -151,7 +153,7 @@ if __name__ == '__main__':
         train(train_data, model, criterion, optimizer, epoch, args)
         if epoch % 30 == 0:
             # val
-            precision = validate(test_data, model, save_path, args)
+            precision = test(val_data, model, save_path, args)
             is_best = precision < args.best_pred
             best_pred = min(precision, args.best_pred)
             logger.info(f'* best MAE: {best_pred}, save_path: {save_path}')
@@ -167,6 +169,6 @@ if __name__ == '__main__':
     # end training
 
     torch.save(model.state_dict(), os.path.join(save_path, 'best.pt'))
-    precision = validate(test_data, model, save_path, args)
+    precision = test(val_data, model, save_path, args)
 
     logger.info(f'Finish training\t * best MAE: {round(best_pred,2)}, results save to: {save_path}')

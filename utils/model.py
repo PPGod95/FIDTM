@@ -21,7 +21,7 @@ def save_checkpoint(state, is_best, save_path, filename='checkpoint.pth'):
 
 
 
-def save_results(input_img, gt_data, density_map, output_dir, fname='results.png'):
+def save_results(input_img, gt_data, density_map, output_dir, fname):
     density_map[density_map < 0] = 0
 
     gt_data = 255 * gt_data / np.max(gt_data)
@@ -36,4 +36,4 @@ def save_results(input_img, gt_data, density_map, output_dir, fname='results.png
 
     result_img = np.hstack((gt_data, density_map))
 
-    cv2.imwrite(os.path.join('.', output_dir, fname).replace('.jpg', '.jpg'), result_img)
+    cv2.imwrite(os.path.join('.', output_dir, fname), result_img)

@@ -45,7 +45,7 @@ def load_data_fidt(img_path, args, train=True):
     while True:
         try:
             gt_file = h5py.File(gt_path)
-            k = np.asarray(gt_file['kpoint'])
+            kpoint = np.asarray(gt_file['kpoint'])
             fidt_map = np.asarray(gt_file['fidt_map'])
             break
         except OSError:
@@ -54,6 +54,6 @@ def load_data_fidt(img_path, args, train=True):
 
     img = img.copy()
     fidt_map = fidt_map.copy()
-    k = k.copy()
+    kpoint = kpoint.copy()
 
-    return img, fidt_map, k
+    return img, fidt_map, kpoint
