@@ -35,13 +35,14 @@ def inference(model, source_list, save_path):
         loc_file = open(os.path.join(save_path, 'localization.txt'), 'w+')
         for img_name in source_list:
             img_path = os.path.join(args.source, img_name)
+            # 图像预处理
             img = cv2.imread(img_path)
             img = cv2.resize(img, args.resize)
             ori_img = img.copy()
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = img_transform(tensor_transform(img)).unsqueeze(0)
 
-            img = tensor_transform(img)
-            img = img_transform(img).unsqueeze(0)
+            img = img.cuda()
 
             d6 = model(img)
             # 转换点图计数
@@ -71,13 +72,14 @@ def inference(model, source_list, save_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FIDTM')
-    parser.add_argument('--gpu_id', type=str, default='0', help='gpu id')
+    parser.add_argument('--gpu_id', type=str, default='1', help='gpu id')
     parser.add_argument('--seed', type=int, default=1, help='random seed')
     parser.add_argument('--workers', type=int, default=16, help='load data workers')
     parser.add_argument('--source', type=str, default='dataset/FIDTM/test/images', help='choice inference dataset')
     parser.add_argument('--project', default='run/inference', help='save results to project/name')
     parser.add_argument('--name', type=str, default='exp', help='save checkpoint directory')
-    parser.add_argument('--model', type=str, default='model/NWPU-Crowd/model_best_nwpu.pth', help='pre-trained model directory')
+    # parser.add_argument('--model', type=str, default='model/NWPU-Crowd/model_best_nwpu.pth', help='pre-trained model directory')
+    parser.add_argument('--model', type=str, default='run/train/exp/last.pt', help='pre-trained model directory')
     parser.add_argument('--resize', type=tuple, default=(1440, 810), help='resize for input img')
 
     '''video demo'''
@@ -102,15 +104,16 @@ if __name__ == '__main__':
     source_list = os.listdir(source_path)
     source_list.sort()
 
-    model = get_seg_model()
-    model = torch.nn.DataParallel(model, device_ids=[0])
+    # model = get_seg_model()
+    model = torch.load(args.model)
+    # model = torch.nn.DataParallel(model, device_ids=[0])
     model = model.cuda()
 
-    if os.path.isfile(args.model):
-        print("=> loading checkpoint '{}'".format(args.model))
-        checkpoint = torch.load(args.model)
-        model.load_state_dict(checkpoint['state_dict'], strict=False)
-    else:
-        print("=> no checkpoint found at '{}'".format(args.model))
+    # if os.path.isfile(args.model):
+    #     print("=> loading checkpoint '{}'".format(args.model))
+    #     checkpoint = torch.load(args.model)
+    #     model.load_state_dict(checkpoint['state_dict'], strict=False)
+    # else:
+    #     print("=> no checkpoint found at '{}'".format(args.model))
 
     inference(model, source_list, save_path)

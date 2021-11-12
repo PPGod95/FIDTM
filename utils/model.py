@@ -7,18 +7,9 @@
 @Desc  : 
 """
 import os
-import shutil
 
 import cv2
-import torch
 import numpy as np
-
-
-def save_checkpoint(state, is_best, save_path, filename='checkpoint.pth'):
-    torch.save(state, './' + str(save_path) + '/' + filename)
-    if is_best:
-        shutil.copyfile('./' + str(save_path) + '/' + filename, './' + str(save_path) + '/' + 'model_best.pth')
-
 
 
 def save_results(input_img, gt_data, density_map, output_dir, fname):

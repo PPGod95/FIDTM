@@ -1,6 +1,5 @@
 
 import os
-import time
 import logging
 import argparse
 import warnings
@@ -86,13 +85,13 @@ def test(pre_data, model, save_path, args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FIDTM')
-    parser.add_argument('--gpu_id', type=str, default='0', help='gpu id')
+    parser.add_argument('--gpu_id', type=str, default='1', help='gpu id')
     parser.add_argument('--seed', type=int, default=1, help='random seed')
-    parser.add_argument('--workers', type=int, default=8, help='load data workers')
+    parser.add_argument('--workers', type=int, default=0, help='load data workers')
     parser.add_argument('--dataset_path', type=str, default='dataset/ShanghaiTech/part_A_final', help='choice train dataset')
     parser.add_argument('--project', default='run/test', help='save results to project/name')
     parser.add_argument('--name', type=str, default='exp', help='save checkpoint directory')
-    parser.add_argument('--model', type=str, default='model/NWPU-Crowd/model_best_nwpu.pth', help='pre-trained model directory')
+    parser.add_argument('--model', type=str, default='run/train/exp5/model_best.pth', help='pre-trained model directory')
     parser.add_argument('--batch_size', type=int, default=1, help='input batch size for test')
     # parser.add_argument('--resize', type=tuple, default=(1440, 810), help='resize for input img')
 
@@ -118,7 +117,7 @@ if __name__ == '__main__':
     logger.info(f'test_size:{len(test_list)}')
 
     model = get_seg_model()
-    model = nn.DataParallel(model, device_ids=[0])
+    # model = nn.DataParallel(model, device_ids=[0])
     model = model.cuda()
 
     if os.path.isfile(args.model):

@@ -22,7 +22,7 @@ from utils.data import *
 from utils.model import *
 from utils.datasets import *
 from utils.general import *
-from Networks.HR_Net.seg_hrnet import get_seg_model
+from Networks.HR_Net_modify.seg_hrnet import get_seg_model
 
 warnings.filterwarnings('ignore')
 
@@ -67,7 +67,7 @@ def train(pre_data, model, criterion, optimizer, epoch, args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FIDTM')
-    parser.add_argument('--gpu_id', type=str, default='0', help='gpu id')
+    parser.add_argument('--gpu_id', type=str, default='1', help='gpu id')
     parser.add_argument('--seed', type=int, default=1, help='random seed')
     parser.add_argument('--workers', type=int, default=8, help='load data workers')
     parser.add_argument('--dataset_path', type=str, default='dataset/ShanghaiTech/part_A_final', help='choice train dataset')
@@ -76,11 +76,11 @@ if __name__ == '__main__':
     parser.add_argument('--pre_trained', type=str, default=None, help='pre-trained model directory')
     # parser.add_argument('--pre_trained', type=str, default='model/NWPU-Crowd/model_best_nwpu.pth',help='pre-trained model directory')
 
-    parser.add_argument('--print_freq', type=int, default=200, help='print frequency')
+    parser.add_argument('--test_freq', type=int, default=30, help='print frequency')
     parser.add_argument('--crop_size', type=int, default=256, help='crop size for training')
-    parser.add_argument('--epochs', type=int, default=3000, help='end epoch for training')
+    parser.add_argument('--epochs', type=int, default=1000, help='end epoch for training')
     parser.add_argument('--start_epoch', type=int, default=0, help='start epoch for training')
-    parser.add_argument('--batch_size', type=int, default=4, help='input batch size for training')
+    parser.add_argument('--batch_size', type=int, default=8, help='input batch size for training')
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=5 * 1e-4, help='weight decay')
     parser.add_argument('--resize', type=tuple, default=(1440, 810), help='resize for input img')
@@ -118,11 +118,9 @@ if __name__ == '__main__':
 
     # 加载模型
     model = get_seg_model(train=True)
-    model = nn.DataParallel(model, device_ids=[0])
+    # model = nn.DataParallel(model, device_ids=[0])
     model = model.cuda()
-    optimizer = torch.optim.Adam([{'params': model.parameters(), 'lr': args.lr}], lr=args.lr,
-                                 weight_decay=args.weight_decay)
-
+    optimizer = torch.optim.Adam([{'params': model.parameters(), 'lr': args.lr}], lr=args.lr, weight_decay=args.weight_decay)
     criterion = nn.MSELoss(size_average=False).cuda()
     # criterion = nn.MSELoss(reduction='sum').cuda()
 
@@ -146,29 +144,30 @@ if __name__ == '__main__':
         else:
             print("=> no checkpoint found at '{}'".format(args.pre_trained))
 
+    # for name, param in model.named_parameters():  # 查看可优化的参数有哪些
+    #     if param.requires_grad:
+    #         print(name)
     best_pred = args.best_pred
 
     # begin training
     for epoch in range(args.start_epoch, args.epochs):
         train(train_data, model, criterion, optimizer, epoch, args)
-        if epoch % 30 == 0:
+        if epoch % args.test_freq == 0:
             # val
             precision = test(val_data, model, save_path, args)
-            is_best = precision < args.best_pred
-            best_pred = min(precision, args.best_pred)
+            is_best = precision < best_pred
+            best_pred = min(precision, best_pred)
             logger.info(f'* best MAE: {best_pred}, save_path: {save_path}')
-
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'pre_trained': args.pre_trained,
-                'state_dict': model.state_dict(),
-                'best_precision': best_pred,
-                'optimizer': optimizer.state_dict(),
-            }, is_best, save_path)
-
-    # end training
-
-    torch.save(model.state_dict(), os.path.join(save_path, 'best.pt'))
+            state = {'epoch': epoch + 1,
+                    'pre_trained': args.pre_trained,
+                    'state_dict': model.state_dict(),
+                    'best_precision': best_pred,
+                    'optimizer': optimizer.state_dict()}
+            torch.save(state, os.path.join(save_path,'checkpoint.pth'))
+            if is_best:
+                torch.save(model, os.path.join(save_path, 'best.pt'))
+        torch.save(model, os.path.join(save_path, 'last.pt'))
+        # end training
     precision = test(val_data, model, save_path, args)
 
     logger.info(f'Finish training\t * best MAE: {round(best_pred,2)}, results save to: {save_path}')
