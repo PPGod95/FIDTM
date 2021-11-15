@@ -78,8 +78,8 @@ if __name__ == '__main__':
     parser.add_argument('--source', type=str, default='dataset/FIDTM/test/images', help='choice inference dataset')
     parser.add_argument('--project', default='run/inference', help='save results to project/name')
     parser.add_argument('--name', type=str, default='exp', help='save checkpoint directory')
-    # parser.add_argument('--model', type=str, default='model/NWPU-Crowd/model_best_nwpu.pth', help='pre-trained model directory')
-    parser.add_argument('--model', type=str, default='run/train/exp/last.pt', help='pre-trained model directory')
+    parser.add_argument('--model', type=str, default='model/NWPU-Crowd/model_best_nwpu.pth', help='pre-trained model directory')
+    # parser.add_argument('--model', type=str, default='run/train/exp/last.pt', help='pre-trained model directory')
     parser.add_argument('--resize', type=tuple, default=(1440, 810), help='resize for input img')
 
     '''video demo'''
@@ -104,16 +104,18 @@ if __name__ == '__main__':
     source_list = os.listdir(source_path)
     source_list.sort()
 
-    # model = get_seg_model()
-    model = torch.load(args.model)
-    # model = torch.nn.DataParallel(model, device_ids=[0])
-    model = model.cuda()
-
-    # if os.path.isfile(args.model):
-    #     print("=> loading checkpoint '{}'".format(args.model))
-    #     checkpoint = torch.load(args.model)
-    #     model.load_state_dict(checkpoint['state_dict'], strict=False)
-    # else:
-    #     print("=> no checkpoint found at '{}'".format(args.model))
+    if args.model.endswith('.pt'):
+        model = torch.load(args.model)
+        model = model.cuda()
+    else:
+        model = get_seg_model()
+        model = nn.DataParallel(model, device_ids=[0])
+        model = model.cuda()
+        if os.path.isfile(args.model):
+            print("=> loading checkpoint '{}'".format(args.model))
+            checkpoint = torch.load(args.model)
+            model.load_state_dict(checkpoint['state_dict'], strict=False)
+        else:
+            print("=> no checkpoint found at '{}'".format(args.model))
 
     inference(model, source_list, save_path)

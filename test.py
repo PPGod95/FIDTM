@@ -91,7 +91,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_path', type=str, default='dataset/ShanghaiTech/part_A_final', help='choice train dataset')
     parser.add_argument('--project', default='run/test', help='save results to project/name')
     parser.add_argument('--name', type=str, default='exp', help='save checkpoint directory')
-    parser.add_argument('--model', type=str, default='run/train/exp5/model_best.pth', help='pre-trained model directory')
+    parser.add_argument('--model', type=str, default='run/train/exp/best.pt', help='pre-trained model directory')
     parser.add_argument('--batch_size', type=int, default=1, help='input batch size for test')
     # parser.add_argument('--resize', type=tuple, default=(1440, 810), help='resize for input img')
 
@@ -116,16 +116,19 @@ if __name__ == '__main__':
 
     logger.info(f'test_size:{len(test_list)}')
 
-    model = get_seg_model()
-    # model = nn.DataParallel(model, device_ids=[0])
-    model = model.cuda()
-
-    if os.path.isfile(args.model):
-        print("=> loading checkpoint '{}'".format(args.model))
-        checkpoint = torch.load(args.model)
-        model.load_state_dict(checkpoint['state_dict'], strict=False)
+    if args.model.endswith('.pt'):
+        model = torch.load(args.model)
+        model = model.cuda()
     else:
-        print("=> no checkpoint found at '{}'".format(args.model))
+        model = get_seg_model()
+        model = nn.DataParallel(model, device_ids=[0])
+        model = model.cuda()
+        if os.path.isfile(args.model):
+            print("=> loading checkpoint '{}'".format(args.model))
+            checkpoint = torch.load(args.model)
+            model.load_state_dict(checkpoint['state_dict'], strict=False)
+        else:
+            print("=> no checkpoint found at '{}'".format(args.model))
 
     save_path = os.path.join(args.project, args.name)
     if os.path.exists(save_path):
