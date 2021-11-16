@@ -3,9 +3,29 @@
 @Project : 
 @FileName: 
 @Author  :penghr 
-@Time    :202x/xx/xx xx:xx
-@Desc  : 
+@Time    :2021/11/xx xx:xx
+@Desc  : FIDTM-train/dataset/FIDTM/
+                                ├── test
+                                │   ├── gt_fidt_map
+                                │   │   └── IMG_8.h5
+                                │   ├── gt_show
+                                │   │   └── IMG_8.jpg
+                                │   ├── images
+                                │   │   └── IMG_8.jpg
+                                │   └── labels
+                                │       └── IMG_8.txt
+                                └── train
+                                    ├── gt_fidt_map
+                                    │   └── IMG_1.h5
+                                    ├── gt_show
+                                    │   └── IMG_1.jpg
+                                    ├── images
+                                    │   └── IMG_1.jpg
+                                    └── labels
+                                        └── IMG_1.txt
+原始数据集分为train&test，各目录下有images和labels文件夹，运行脚本生成gt_show以及gt_fidt_map文件夹，其中gt_show为可视化标注不参与训练，gt_fidt_map为生成的fidtmap和kpoint字典，参与下一步训练。
 """
+
 import math
 import os
 
@@ -17,6 +37,7 @@ from tqdm import tqdm
 
 # 生成路径
 dataset_path = '../dataset/FIDTM'
+label_type = 'txt'
 train_path = os.path.join(dataset_path, 'train')
 test_path = os.path.join(dataset_path, 'test')
 
@@ -77,7 +98,12 @@ print('开始生成训练数据')
 with tqdm(total=len(img_paths)) as pbar:
     for img_path in img_paths:
         img = cv2.imread(img_path)
-        gt = np.loadtxt(img_path.replace('images', 'labels').replace('.jpg', '.txt'))[:, 0:2].round(8)
+        if label_type == 'txt':
+            gt = np.loadtxt(img_path.replace('images', 'labels').replace('.jpg', '.txt'))[:, 0:2].round(8)
+        elif label_type == 'npy':
+            gt = np.load(img_path.replace('images', 'labels').replace('.jpg', '.npy')).round(8)
+        elif label_type == 'mat':
+            gt = np.loadtxt(img_path.replace('images', 'labels').replace('.jpg', '.mat'))[:, 0:2].round(8)
         '''最关键，根据标签生成fidt图'''
         fidt_map = fidt_generate(img, gt, 1)
 
@@ -100,11 +126,14 @@ with tqdm(total=len(img_paths)) as pbar:
         pbar.update()
 
         '''可视化，可以不要'''
-        fidt_map1 = fidt_map
-        fidt_map1 = fidt_map1 / np.max(fidt_map1) * 255
-        fidt_map1 = fidt_map1.astype(np.uint8)
-        fidt_map1 = cv2.applyColorMap(fidt_map1, 2)
-        cv2.imwrite(img_path.replace('images', 'gt_show'), fidt_map1)
+        try:
+            fidt_map1 = fidt_map
+            fidt_map1 = fidt_map1 / np.max(fidt_map1) * 255
+            fidt_map1 = fidt_map1.astype(np.uint8)
+            fidt_map1 = cv2.applyColorMap(fidt_map1, 2)
+            cv2.imwrite(img_path.replace('images', 'gt_show'), fidt_map1)
+        except Exception as e:
+            print(img_path,e)
 
         # cv2.imshow('1', fidt_map1)
         # cv2.waitKey(0)

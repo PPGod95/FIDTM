@@ -1,5 +1,6 @@
 
 import os
+import time
 import logging
 import argparse
 import warnings
@@ -18,7 +19,7 @@ warnings.filterwarnings('ignore')
 
 
 def test(pre_data, model, save_path, args):
-    print('begin test')
+    print('Begin test ......')
     batch_size = 1
     test_loader = torch.utils.data.DataLoader(
         listDataset(pre_data,
@@ -71,7 +72,6 @@ def test(pre_data, model, save_path, args):
     mae = mae * 1.0 / (len(test_loader) * batch_size)
     mse = math.sqrt(mse / (len(test_loader)) * batch_size)
 
-    print(' \n* MAE {mae:.3f}'.format(mae=mae), '* MSE {mse:.3f}'.format(mse=mse))
 
     for j in range(len(visi)):
         img = visi[j][0]
@@ -79,6 +79,8 @@ def test(pre_data, model, save_path, args):
         target = visi[j][2]
         img_name = visi[j][3]
         save_results(img, target, output, save_path, img_name)
+
+    logger.info(f'* MAE:{mae:.3f}, * MSE:{mse:.3f}')
 
     return mae
 
@@ -91,7 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_path', type=str, default='dataset/ShanghaiTech/part_A_final', help='choice train dataset')
     parser.add_argument('--project', default='run/test', help='save results to project/name')
     parser.add_argument('--name', type=str, default='exp', help='save checkpoint directory')
-    parser.add_argument('--model', type=str, default='run/train/exp/best.pt', help='pre-trained model directory')
+    parser.add_argument('--model', type=str, default='run/train/exp/last.pt', help='pre-trained model directory')
     parser.add_argument('--batch_size', type=int, default=1, help='input batch size for test')
     # parser.add_argument('--resize', type=tuple, default=(1440, 810), help='resize for input img')
 
@@ -113,8 +115,7 @@ if __name__ == '__main__':
 
     torch.set_num_threads(4)
     test_data = pre_data(test_list, args, train=False)
-
-    logger.info(f'test_size:{len(test_list)}')
+    # logger.info(f'test_size:{len(test_list)}')
 
     if args.model.endswith('.pt'):
         model = torch.load(args.model)
@@ -136,8 +137,9 @@ if __name__ == '__main__':
         os.makedirs(save_path)
     else:
         os.makedirs(save_path)
-    logger.info(f'file save to {save_path}')
+    logger.info(f'Results save to {save_path}')
 
+    start_time = time.time()
     precision = test(test_data, model, save_path, args)
 
-    print('\nThe visualizations are provided in ', save_path)
+    logger.info(f'Finish testing in {round(time.time()-start_time,2)}s \nThe visualizations are provided in: {save_path}')

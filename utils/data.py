@@ -52,8 +52,8 @@ def load_data_fidt(img_path, args, train=True):
             print("path is wrong, can not load ", img_path)
             cv2.waitKey(1000)  # Wait a bit
 
-    img = img.copy()
-    fidt_map = fidt_map.copy()
-    kpoint = kpoint.copy()
+    # img = img.copy()
+    # fidt_map = fidt_map.copy()
+    # kpoint = kpoint.copy()
 
     return img, fidt_map, kpoint

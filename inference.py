@@ -78,8 +78,8 @@ if __name__ == '__main__':
     parser.add_argument('--source', type=str, default='dataset/FIDTM/test/images', help='choice inference dataset')
     parser.add_argument('--project', default='run/inference', help='save results to project/name')
     parser.add_argument('--name', type=str, default='exp', help='save checkpoint directory')
-    parser.add_argument('--model', type=str, default='model/NWPU-Crowd/model_best_nwpu.pth', help='pre-trained model directory')
-    # parser.add_argument('--model', type=str, default='run/train/exp/last.pt', help='pre-trained model directory')
+    # parser.add_argument('--model', type=str, default='model/NWPU-Crowd/model_best_nwpu.pth', help='pre-trained model directory')
+    parser.add_argument('--model', type=str, default='run/train/exp/last.pt', help='pre-trained model directory')
     parser.add_argument('--resize', type=tuple, default=(1440, 810), help='resize for input img')
 
     '''video demo'''
@@ -98,7 +98,7 @@ if __name__ == '__main__':
         os.makedirs(save_path)
     else:
         os.makedirs(save_path)
-    logger.info(f'results save to {save_path}')
+    logger.info(f'Results save to {save_path}')
 
     source_path = args.source
     source_list = os.listdir(source_path)
@@ -119,3 +119,4 @@ if __name__ == '__main__':
             print("=> no checkpoint found at '{}'".format(args.model))
 
     inference(model, source_list, save_path)
+    logger.info(f'The visualizations are provided in: {save_path}')

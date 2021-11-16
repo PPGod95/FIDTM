@@ -70,7 +70,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu_id', type=str, default='1', help='gpu id')
     parser.add_argument('--seed', type=int, default=1, help='random seed')
     parser.add_argument('--workers', type=int, default=8, help='load data workers')
-    parser.add_argument('--dataset_path', type=str, default='dataset/ShanghaiTech/part_A_final', help='choice train dataset')
+    parser.add_argument('--dataset_path', type=str, default='dataset/NWPU', help='choice train dataset')
     parser.add_argument('--project', default='run/train', help='save results to project/name')
     parser.add_argument('--name', type=str, default='exp', help='save checkpoint directory')
     parser.add_argument('--pre_trained', type=str, default=None, help='pre-trained model directory')
@@ -148,7 +148,7 @@ if __name__ == '__main__':
     #     if param.requires_grad:
     #         print(name)
     best_pred = args.best_pred
-
+    start_time = time.time()
     # begin training
     for epoch in range(args.start_epoch, args.epochs):
         train(train_data, model, criterion, optimizer, epoch, args)
@@ -170,4 +170,4 @@ if __name__ == '__main__':
         # end training
     precision = test(val_data, model, save_path, args)
 
-    logger.info(f'Finish training\t * best MAE: {round(best_pred,2)}, results save to: {save_path}')
+    logger.info(f'Finish training in {round((time.time()-start_time)/3600,2)}h \n * best MAE: {round(best_pred,2)}, results save to: {save_path}')
